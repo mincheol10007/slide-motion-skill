@@ -22,8 +22,12 @@
 | 이징 | `ease` | `cubic-bezier(0.25, 0.1, 0.35, 0.95)` |
 
 공통 이징은 **합동 73점 최소제곱 피팅** 결과입니다.
-`ease-in-out` 과 `linear` 는 두 패턴 모두에서 **가장 안 맞는 곡선**이었습니다 —
-"모핑은 부드럽게 시작해 부드럽게 끝난다"는 통념이 실측과 반대였습니다.
+`ease-in-out` 과 `linear` 가 두 패턴 모두에서 **가장 안 맞는 곡선**이었습니다.
+
+실측이 뒤집은 것은 「부드럽게 시작한다」가 아니라 **대칭성**입니다.
+이 곡선은 linear 보다 **느리게 출발해**(초기 기울기 0.40),
+**1/4 지점에서 linear 의 1.9배 속도로 피크**를 찍고, **나머지 3/4 을 감속에 씁니다.**
+`ease-in-out` 이 안 맞는 건 대칭이라서고, `linear` 는 이 앞무게가 아예 없어서입니다.
 
 ## 어떻게 동작하나
 
@@ -53,8 +57,20 @@
 
 ## 들어 있는 것
 
-패턴 **5개** · 공통 이징 · 공통 규격 · **직접 밟아 본 함정** · 증상별 수정법이
-`SKILL.md` 한 파일에 통째로 들어 있습니다. **자족적입니다** — 쓰는 사람은 측정하지 않습니다.
+```
+slide-motion/
+├─ SKILL.md                  철칙 · 관계 판별 · 게이트 · 공통 상수 · 공통 규격 · 함정 · 수정 루프
+└─ references/
+   ├─ pattern-01-odometer.md      년도 오도미터   (순서)
+   ├─ pattern-02-highlight.md     하이라이팅 승격 (병렬, 한 줄 3개)
+   ├─ pattern-03-grid-hero.md     그리드 → 히어로 (병렬, 격자)
+   ├─ pattern-04-zoom-through.md  목업 줌스루     (포함)
+   └─ pattern-05-photo-pop.md     사진이 쏙       (⚠️ 근거 약함)
+```
+
+**자족적입니다** — 쓰는 사람은 측정하지 않습니다.
+패턴 문서는 **고른 뒤에만 읽습니다.** 다섯 개를 항상 물고 있으면 대화 내내
+컨텍스트를 차지하기 때문에 이렇게 나눴습니다.
 
 ---
 
@@ -62,11 +78,11 @@
 
 ### 1. claude.ai 스킬로 (권장)
 
-**[슬라이드모션.zip 받기](https://github.com/mincheol10007/slide-motion-skill/releases/latest/download/slide-motion-skill.zip)**
+**[slide-motion-skill.zip 받기](https://github.com/mincheol10007/slide-motion-skill/releases/latest/download/slide-motion-skill.zip)**
 → `설정 > 사용자 지정 > 스킬 > 업로드` 에 그대로 올립니다.
 
 > 저장소의 초록색 **Code > Download ZIP** 버튼으로 받은 파일은 **쓸 수 없습니다.**
-> 폴더가 한 겹 더 깊어져(`slide-motion-skill-main/슬라이드모션/`) 스킬로 인식되지 않습니다.
+> 폴더가 한 겹 더 깊어져(`slide-motion-skill-main/slide-motion/`) 스킬로 인식되지 않습니다.
 > 위 링크(릴리스 자산)를 쓰세요.
 
 그 다음 이렇게 부르면 됩니다.
@@ -75,19 +91,26 @@
 슬라이드에 모션 넣어줘
 ```
 
-> 스킬 기능은 Pro/Max/Team 플랜 + 코드 실행 활성화가 필요합니다.
+> 스킬 업로드에는 **코드 실행(code execution) 활성화**가 필요합니다.
+> 플랜 제한은 따로 없습니다.
+
+**어디서 동작하나** — 커스텀 스킬이 적용된다고 공식 문서에 명시된 곳은
+**Chat · Cowork · Excel/PowerPoint/Word/Outlook 애드인** 입니다.
+그 밖의 화면에서도 되는지는 **확인된 바 없습니다.** 안 되면 아래 3번을 쓰세요.
 
 ### 2. Claude Code 스킬로
 
 ```bash
 git clone https://github.com/mincheol10007/slide-motion-skill.git
-cp -r slide-motion-skill/슬라이드모션 ~/.claude/skills/
+cp -r slide-motion-skill/slide-motion ~/.claude/skills/
 ```
 
-### 3. 그냥 붙여넣기 (플랜 제한 없음)
+### 3. 그냥 붙여넣기 (업로드가 안 되는 어디서든)
 
-**[`슬라이드모션/SKILL.md`](슬라이드모션/SKILL.md) 내용을 통째로 복사해 대화창에 붙여넣어도
+**[`slide-motion/SKILL.md`](slide-motion/SKILL.md) 내용을 통째로 복사해 대화창에 붙여넣어도
 똑같이 동작합니다.** 그렇게 쓸 걸 감안해서 쓴 문서입니다.
+패턴 상세까지 한 장으로 필요하면 릴리스의 **`slide-motion-full.md`** 를 쓰세요
+(SKILL.md + 패턴 문서 5개를 CI 가 이어붙여 만든 것입니다).
 맨 뒤에 이 한 줄만 붙이면 됩니다.
 
 ```
@@ -123,7 +146,7 @@ cp -r slide-motion-skill/슬라이드모션 ~/.claude/skills/
 
 ## ZIP 은 손으로 만들지 않습니다
 
-**원본은 `슬라이드모션/SKILL.md` 하나뿐입니다.** ZIP 은 저장소에 커밋하지 않고,
+**원본은 `slide-motion/SKILL.md` 하나뿐입니다.** ZIP 은 저장소에 커밋하지 않고,
 태그를 밀면 GitHub Actions 가 만들어 릴리스에 붙입니다
 ([`.github/workflows/release.yml`](.github/workflows/release.yml)).
 
@@ -132,7 +155,7 @@ git tag v1.0.1 && git push origin v1.0.1
 ```
 
 같은 내용을 두 곳에 두면 한쪽만 고쳐져 **조용히 갈라지기** 때문입니다.
-빌드 단계에서 구조도 검증합니다 — ZIP 엔트리가 `슬라이드모션/SKILL.md` 하나인지,
+빌드 단계에서 구조도 검증합니다 — ZIP 엔트리가 `slide-motion/SKILL.md` 하나인지,
 frontmatter 의 `name` 이 폴더명과 같은지.
 
 > ZIP 을 직접 말 일이 있다면 `Compress-Archive` 는 쓰지 마세요 —

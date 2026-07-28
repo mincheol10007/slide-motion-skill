@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+env:
+  SKILL_DIR: slide-motion          # == frontmatter 의 name. 둘이 같아야 스킬로 인식된다
+  ASSET: slide-motion-skill.zip
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,34 +24,77 @@ jobs:
         run: |
           python3 - <<'PY'
           import zipfile, os
-          with zipfile.ZipFile('slide-motion-skill.zip', 'w', zipfile.ZIP_DEFLATED) as z:
-              for root, _, files in os.walk('슬라이드모션'):
-                  for f in files:
+          d = os.environ['SKILL_DIR']; asset = os.environ['ASSET']
+          with zipfile.ZipFile(asset, 'w', zipfile.ZIP_DEFLATED) as z:
+              for root, _, files in os.walk(d):
+                  for f in sorted(files):
                       p = os.path.join(root, f)
                       # ZIP 규격은 슬래시다. 역슬래시로 들어가면 업로드가 깨진다
                       z.write(p, os.path.relpath(p, '.').replace(os.sep, '/'))
           PY
 
       - name: 구조 검증
-        # 폴더명이 frontmatter 의 name 과 일치해야 스킬로 인식된다
         run: |
           python3 - <<'PY'
-          import zipfile, sys, re
-          names = zipfile.ZipFile('slide-motion-skill.zip').namelist()
-          assert names == ['슬라이드모션/SKILL.md'], f'예상 밖 구조: {names}'
-          body = open('슬라이드모션/SKILL.md', encoding='utf-8').read()
+          import zipfile, os, re
+          d = os.environ['SKILL_DIR']; asset = os.environ['ASSET']
+          names = zipfile.ZipFile(asset).namelist()
+
+          # 1) SKILL.md 가 스킬 폴더 바로 아래에 있어야 한다
+          assert f'{d}/SKILL.md' in names, f'SKILL.md 가 없다: {names}'
+          # 2) 스킬 폴더 밖의 파일이 섞이면 안 된다
+          stray = [n for n in names if not n.startswith(f'{d}/')]
+          assert not stray, f'스킬 폴더 밖 파일이 섞였다: {stray}'
+
+          body = open(f'{d}/SKILL.md', encoding='utf-8').read()
           name = re.search(r'^name:\s*(\S+)', body, re.M).group(1)
-          assert name == '슬라이드모션', f'name({name}) 이 폴더명과 다르다'
+
+          # 3) 폴더명 == name
+          assert name == d, f'name({name}) 이 폴더명({d})과 다르다'
+          # 4) ★ Agent Skills 규격 — 소문자·숫자·하이픈만, 64자 이하, 예약어 불가
+          assert re.fullmatch(r'[a-z0-9]+(-[a-z0-9]+)*', name), f'name 규격 위반: {name}'
+          assert len(name) <= 64, f'name 이 64자를 넘는다: {len(name)}'
+          assert not re.search(r'anthropic|claude', name), f'예약어 사용: {name}'
+
           print('OK', names, name)
           PY
 
-      - name: 릴리스 생성
+      - name: 한 장짜리 번들 생성 (붙여넣기 폴백용)
+        # 스킬을 못 쓰는 환경에서 통째로 붙여넣을 수 있게 SKILL.md + 패턴 문서를 이어붙인다.
+        # ★ 생성물이므로 저장소에 커밋하지 않는다 — 손으로 만들면 갈라진다
+        run: |
+          python3 - <<'PY'
+          import os, glob
+          d = os.environ['SKILL_DIR']
+          parts = [open(f'{d}/SKILL.md', encoding='utf-8').read()]
+          for p in sorted(glob.glob(f'{d}/references/*.md')):
+              parts.append(f'\n\n---\n\n<!-- {os.path.basename(p)} -->\n\n'
+                           + open(p, encoding='utf-8').read())
+          out = ''.join(parts)
+          open('slide-motion-full.md', 'w', encoding='utf-8').write(out)
+          print('full.md 문자수:', len(out), '/ 이어붙인 패턴 문서:',
+                len(glob.glob(f'{d}/references/*.md')))
+          PY
+
+      - name: 릴리스 노트 작성
+        # ★ 인라인 --notes 로 넘기면 YAML 들여쓰기가 본문에 섞여 코드블록으로 렌더된다.
+        #   파일로 빼서 --notes-file 로 준다.
+        run: |
+          cat > NOTES.md <<'EOF'
+          claude.ai 의 `설정 > 사용자 지정 > 스킬 > 업로드` 에 `slide-motion-skill.zip` 을 그대로 올리면 됩니다.
+
+          업로드가 안 되는 환경이면 `slide-motion-full.md` 를 통째로 대화창에 붙여넣으세요.
+
+          저장소의 초록색 **Code > Download ZIP** 으로 받은 파일은 폴더가 한 겹 더 깊어 쓸 수 없습니다.
+
+          이 ZIP 은 태그 시점의 `slide-motion/SKILL.md` 로 자동 생성된 것입니다.
+          EOF
+
+      - name: 릴리스 생성 (같은 태그면 자산만 교체)
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" slide-motion-skill.zip \
-            --title "$TAG" \
-            --notes "claude.ai 의 \`설정 > 사용자 지정 > 스킬 > 업로드\` 에 \`slide-motion-skill.zip\` 을 그대로 올리면 됩니다.
-
-          이 ZIP 은 태그 시점의 \`슬라이드모션/SKILL.md\` 로 자동 생성된 것입니다."
+          gh release create "$TAG" "$ASSET" slide-motion-full.md \
+            --title "$TAG" --notes-file NOTES.md \
+            || gh release upload "$TAG" "$ASSET" slide-motion-full.md --clobber
