@@ -62,8 +62,12 @@
 
 ### 1. claude.ai 스킬로 (권장)
 
-[`슬라이드모션.zip`](슬라이드모션.zip) 을 받아
-`설정 > 사용자 지정 > 스킬 > 업로드` 에 올립니다.
+**[슬라이드모션.zip 받기](https://github.com/mincheol10007/slide-motion-skill/releases/latest/download/slide-motion-skill.zip)**
+→ `설정 > 사용자 지정 > 스킬 > 업로드` 에 그대로 올립니다.
+
+> 저장소의 초록색 **Code > Download ZIP** 버튼으로 받은 파일은 **쓸 수 없습니다.**
+> 폴더가 한 겹 더 깊어져(`slide-motion-skill-main/슬라이드모션/`) 스킬로 인식되지 않습니다.
+> 위 링크(릴리스 자산)를 쓰세요.
 
 그 다음 이렇게 부르면 됩니다.
 
@@ -117,23 +121,22 @@ cp -r slide-motion-skill/슬라이드모션 ~/.claude/skills/
 
 ---
 
-## ZIP 다시 만들기
+## ZIP 은 손으로 만들지 않습니다
 
-`SKILL.md` 를 고쳤다면 ZIP 도 다시 말아야 합니다.
+**원본은 `슬라이드모션/SKILL.md` 하나뿐입니다.** ZIP 은 저장소에 커밋하지 않고,
+태그를 밀면 GitHub Actions 가 만들어 릴리스에 붙입니다
+([`.github/workflows/release.yml`](.github/workflows/release.yml)).
 
 ```bash
-python -c "
-import zipfile, os
-with zipfile.ZipFile('슬라이드모션.zip','w',zipfile.ZIP_DEFLATED) as z:
-    for root,_,fs in os.walk('슬라이드모션'):
-        for f in fs:
-            p=os.path.join(root,f)
-            z.write(p, os.path.relpath(p,'.').replace(os.sep,'/'))
-"
+git tag v1.0.1 && git push origin v1.0.1
 ```
 
-> `Compress-Archive` 는 쓰지 마세요 — ZIP 엔트리 경로에 **역슬래시**를 넣어서
-> 업로드가 깨질 수 있습니다.
+같은 내용을 두 곳에 두면 한쪽만 고쳐져 **조용히 갈라지기** 때문입니다.
+빌드 단계에서 구조도 검증합니다 — ZIP 엔트리가 `슬라이드모션/SKILL.md` 하나인지,
+frontmatter 의 `name` 이 폴더명과 같은지.
+
+> ZIP 을 직접 말 일이 있다면 `Compress-Archive` 는 쓰지 마세요 —
+> 엔트리 경로에 **역슬래시**를 넣어서 업로드가 깨집니다. 파이썬 `zipfile` 을 쓰세요.
 
 ## 라이선스
 

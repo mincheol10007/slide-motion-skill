@@ -1,0 +1,53 @@
+name: release
+
+# ZIP 은 저장소에 커밋하지 않는다. 태그를 밀면 여기서 만들어 릴리스에 붙인다.
+# 손으로 만든 사본을 두면 SKILL.md 와 조용히 갈라지기 때문이다.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ZIP 빌드
+        run: |
+          python3 - <<'PY'
+          import zipfile, os
+          with zipfile.ZipFile('slide-motion-skill.zip', 'w', zipfile.ZIP_DEFLATED) as z:
+              for root, _, files in os.walk('슬라이드모션'):
+                  for f in files:
+                      p = os.path.join(root, f)
+                      # ZIP 규격은 슬래시다. 역슬래시로 들어가면 업로드가 깨진다
+                      z.write(p, os.path.relpath(p, '.').replace(os.sep, '/'))
+          PY
+
+      - name: 구조 검증
+        # 폴더명이 frontmatter 의 name 과 일치해야 스킬로 인식된다
+        run: |
+          python3 - <<'PY'
+          import zipfile, sys, re
+          names = zipfile.ZipFile('slide-motion-skill.zip').namelist()
+          assert names == ['슬라이드모션/SKILL.md'], f'예상 밖 구조: {names}'
+          body = open('슬라이드모션/SKILL.md', encoding='utf-8').read()
+          name = re.search(r'^name:\s*(\S+)', body, re.M).group(1)
+          assert name == '슬라이드모션', f'name({name}) 이 폴더명과 다르다'
+          print('OK', names, name)
+          PY
+
+      - name: 릴리스 생성
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" slide-motion-skill.zip \
+            --title "$TAG" \
+            --notes "claude.ai 의 \`설정 > 사용자 지정 > 스킬 > 업로드\` 에 \`slide-motion-skill.zip\` 을 그대로 올리면 됩니다.
+
+          이 ZIP 은 태그 시점의 \`슬라이드모션/SKILL.md\` 로 자동 생성된 것입니다."
